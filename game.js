@@ -1,7 +1,7 @@
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-/* ---------- CANVAS (STABLE SIZE) ---------- */
+/* ================= CANVAS ================= */
 function resizeCanvas() {
   canvas.width = Math.min(window.innerWidth, 420);
   canvas.height = Math.min(window.innerHeight, 640);
@@ -9,7 +9,7 @@ function resizeCanvas() {
 resizeCanvas();
 window.addEventListener("resize", resizeCanvas);
 
-/* ---------- UI ---------- */
+/* ================= UI ================= */
 const startScreen = document.getElementById("startScreen");
 const gameOverScreen = document.getElementById("gameOverScreen");
 const startBtn = document.getElementById("startBtn");
@@ -17,14 +17,14 @@ const restartBtn = document.getElementById("restartBtn");
 const finalScore = document.getElementById("finalScore");
 const nameInput = document.getElementById("playerName");
 
-/* ---------- ASSETS ---------- */
+/* ================= ASSETS ================= */
 const playerImg = new Image();
 playerImg.src = "dy.jpg";
 
 const pipeImg = new Image();
 pipeImg.src = "dacchu.png";
 
-/* ---------- AUDIO ---------- */
+/* ================= AUDIO ================= */
 const bgMusic = new Audio("bg1.mpeg");
 bgMusic.loop = true;
 bgMusic.volume = 0.3;
@@ -32,108 +32,154 @@ bgMusic.volume = 0.3;
 const gameOverSound = new Audio("go.mpeg");
 const winSound = new Audio("win.mpeg");
 
-/* ---------- GAME CONSTANTS ---------- */
-const PIPE_WIDTH = 60;
+/* ================= CONSTANTS ================= */
+const PIPE_WIDTH = 70;
 const PIPE_GAP = 200;
-const GRAVITY = 0.4;
-const JUMP = -7;
-const SPEED = 2.2;
+const PIPE_SPEED = 2.4;
+
+const GRAVITY = 0.45;
+const JUMP = -7.5;
 const GOLD_SCORE = 100;
 
-/* ---------- GAME STATE ---------- */
-let player, pipes, score, running;
+/* ================= GAME STATE ================= */
+let player;
+let pipes = [];
+let score = 0;
+let running = false;
+let pipeSpawnTimer = 0;
 
-/* ---------- PLAYER ---------- */
+/* ================= PLAYER ================= */
 function createPlayer() {
   return {
     x: 90,
     y: canvas.height / 2,
-    vy: 0,
-    size: 50
+    size: 52,
+    velocity: 0
   };
 }
 
-/* ---------- PIPE ---------- */
+/* ================= PIPE ================= */
 function createPipe() {
+  const minTop = 60;
+  const maxTop = canvas.height - PIPE_GAP - 120;
+
   const topHeight =
-    Math.random() * (canvas.height - PIPE_GAP - 200) + 80;
+    Math.random() * (maxTop - minTop) + minTop;
 
   return {
     x: canvas.width,
-    top: topHeight,
+    topHeight,
     passed: false
   };
 }
 
-/* ---------- GAME LOOP ---------- */
-function loop() {
+/* ================= GAME LOOP ================= */
+function gameLoop() {
   if (!running) return;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  /* Player */
-  player.vy += GRAVITY;
-  player.y += player.vy;
-  ctx.drawImage(playerImg, player.x, player.y, player.size, player.size);
+  /* ----- PLAYER ----- */
+  player.velocity += GRAVITY;
+  player.y += player.velocity;
 
-  /* Pipes */
-  pipes.forEach(p => {
-    p.x -= SPEED;
+  ctx.drawImage(
+    playerImg,
+    player.x,
+    player.y,
+    player.size,
+    player.size
+  );
 
-    // Top pipe
-    ctx.drawImage(pipeImg, p.x, p.top - 50, PIPE_WIDTH, 50);
+  /* ----- PIPES ----- */
+  pipes.forEach(pipe => {
+    pipe.x -= PIPE_SPEED;
+
+    /* Top pipe body */
     ctx.fillStyle = "#4CAF50";
-    ctx.fillRect(p.x, 0, PIPE_WIDTH, p.top - 50);
+    ctx.fillRect(
+      pipe.x,
+      0,
+      PIPE_WIDTH,
+      pipe.topHeight
+    );
 
-    // Bottom pipe
+    /* Top pipe cap */
     ctx.drawImage(
       pipeImg,
-      p.x,
-      p.top + PIPE_GAP,
+      pipe.x,
+      pipe.topHeight - 40,
       PIPE_WIDTH,
-      50
-    );
-    ctx.fillRect(
-      p.x,
-      p.top + PIPE_GAP + 50,
-      PIPE_WIDTH,
-      canvas.height
+      40
     );
 
-    // Score
-    if (!p.passed && p.x + PIPE_WIDTH < player.x) {
+    /* Bottom pipe body */
+    const bottomY = pipe.topHeight + PIPE_GAP;
+    ctx.fillRect(
+      pipe.x,
+      bottomY + 40,
+      PIPE_WIDTH,
+      canvas.height - bottomY
+    );
+
+    /* Bottom pipe cap */
+    ctx.drawImage(
+      pipeImg,
+      pipe.x,
+      bottomY,
+      PIPE_WIDTH,
+      40
+    );
+
+    /* ----- SCORE ----- */
+    if (!pipe.passed && pipe.x + PIPE_WIDTH < player.x) {
+      pipe.passed = true;
       score++;
-      p.passed = true;
     }
 
-    // Collision
-    if (
-      player.x < p.x + PIPE_WIDTH &&
-      player.x + player.size > p.x &&
-      (player.y < p.top ||
-        player.y + player.size >
-          p.top + PIPE_GAP)
-    ) {
+    /* ----- COLLISION ----- */
+    const hitX =
+      player.x < pipe.x + PIPE_WIDTH &&
+      player.x + player.size > pipe.x;
+
+    const hitTop =
+      player.y < pipe.topHeight;
+
+    const hitBottom =
+      player.y + player.size > bottomY;
+
+    if (hitX && (hitTop || hitBottom)) {
       endGame(false);
     }
   });
 
   pipes = pipes.filter(p => p.x + PIPE_WIDTH > 0);
 
-  if (Math.random() < 0.02) pipes.push(createPipe());
+  /* ----- PIPE SPAWN ----- */
+  pipeSpawnTimer++;
+  if (pipeSpawnTimer > 90) {
+    pipes.push(createPipe());
+    pipeSpawnTimer = 0;
+  }
 
-  /* Score display */
+  /* ----- SCORE DISPLAY ----- */
   ctx.fillStyle = "#000";
-  ctx.font = "26px Arial Black";
-  ctx.fillText(score, canvas.width / 2 - 10, 40);
+  ctx.font = "28px Arial Black";
+  ctx.fillText(score, canvas.width / 2 - 12, 45);
 
-  if (score >= GOLD_SCORE) endGame(true);
-  if (player.y < 0 || player.y + player.size > canvas.height)
+  /* ----- BOUNDS ----- */
+  if (player.y < 0 || player.y + player.size > canvas.height) {
     endGame(false);
-  else requestAnimationFrame(loop);
+  }
+
+  if (score >= GOLD_SCORE) {
+    endGame(true);
+  }
+
+  requestAnimationFrame(gameLoop);
 }
 
-/* ---------- START ---------- */
+/* ================= START GAME ================= */
 function startGame() {
   if (!nameInput.value.trim()) {
     alert("Enter saviour name");
@@ -143,6 +189,7 @@ function startGame() {
   player = createPlayer();
   pipes = [];
   score = 0;
+  pipeSpawnTimer = 0;
   running = true;
 
   bgMusic.currentTime = 0;
@@ -151,10 +198,10 @@ function startGame() {
   startScreen.classList.add("hidden");
   gameOverScreen.classList.add("hidden");
 
-  requestAnimationFrame(loop);
+  requestAnimationFrame(gameLoop);
 }
 
-/* ---------- END ---------- */
+/* ================= END GAME ================= */
 function endGame(win) {
   if (!running) return;
   running = false;
@@ -176,15 +223,16 @@ function endGame(win) {
   gameOverScreen.classList.remove("hidden");
 }
 
-/* ---------- INPUT ---------- */
+/* ================= INPUT ================= */
 canvas.addEventListener("pointerdown", () => {
-  if (running) player.vy = JUMP;
+  if (running) player.velocity = JUMP;
 });
 
 document.addEventListener("keydown", e => {
-  if (e.code === "Space" && running) player.vy = JUMP;
+  if (e.code === "Space" && running) {
+    player.velocity = JUMP;
+  }
 });
 
 startBtn.onclick = startGame;
 restartBtn.onclick = () => location.reload();
-
