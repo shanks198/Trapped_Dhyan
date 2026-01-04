@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Flappy Dhyan</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#72c3fc">
+  <link rel="stylesheet" href="body.css">
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+
+<!-- START SCREEN -->
+<div id="startScreen">
+  <h1>Dhyan is trapped , Help him!!!</h1>
+
+  <p class="missionText">Score 50 to save Dhyan</p>
+
+  <!-- START IMAGE -->
+  <img src="start.jpeg" alt="Save Dhyan" class="startImage">
+
+  <input id="playerName" placeholder="Enter saviour name"><br><br>
+
+  <label>Difficulty</label><br><br>
+  <select id="difficulty">
+    <option value="easy" selected>Easy</option>
+    <option value="medium">Medium</option>
+    <option value="hard">Hard</option>
+  </select><br><br>
+
+  <button id="startBtn">Start Game</button>
+</div>
+
+<!-- GAME OVER -->
+<div id="gameOverScreen" class="hidden">
+  <h1>Mission Complete</h1>
+  <p id="finalScore"></p>
+  <button id="restartBtn">Play Again</button>
+</div>
+
+<!-- LEADERBOARD -->
+<div id="leaderboard" class="hidden">
+  <h2>🏆 Saviours Leaderboard</h2>
+  <ol id="leaderboardList"></ol>
+  <button id="closeBoardBtn">Close</button>
+  <button id="clearBoardBtn">Clear Leaderboard</button>
+</div>
+
+<button id="pauseBtn" class="hidden">⏸ Pause</button>
+
+<script src="game.js"></script>
+</body>
+</html>
+
