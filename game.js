@@ -1,47 +1,28 @@
-/* 🔥 FIREBASE IMPORTS */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import {
-  getFirestore,
-  collection,
-  addDoc,
-  getDocs
-} from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+// 🔴 TEMPORARILY DISABLE FIREBASE
+// (we will re-enable after confirming game runs)
 
-/* 🔴 PASTE YOUR REAL CONFIG HERE */
-const firebaseConfig = {
-  apiKey: "PASTE_HERE",
-  authDomain: "PASTE_HERE",
-  projectId: "PASTE_HERE",
-  storageBucket: "PASTE_HERE",
-  messagingSenderId: "PASTE_HERE",
-  appId: "PASTE_HERE"
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-/* ---------- CANVAS ---------- */
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-canvas.width = Math.min(innerWidth, 400);
-canvas.height = Math.min(innerHeight, 600);
+/* ---------- CANVAS ---------- */
+function resize() {
+  canvas.width = Math.min(window.innerWidth, 400);
+  canvas.height = Math.min(window.innerHeight, 600);
+}
+resize();
+window.addEventListener("resize", resize);
 
 /* ---------- UI ---------- */
 const startScreen = document.getElementById("startScreen");
 const gameOverScreen = document.getElementById("gameOverScreen");
-const leaderboardDiv = document.getElementById("leaderboard");
-const leaderboardList = document.getElementById("leaderboardList");
 const startBtn = document.getElementById("startBtn");
 const restartBtn = document.getElementById("restartBtn");
-const closeBoardBtn = document.getElementById("closeBoardBtn");
 const finalScore = document.getElementById("finalScore");
 const nameInput = document.getElementById("playerName");
 
 /* ---------- ASSETS ---------- */
 const playerImg = new Image();
 playerImg.src = "dy.jpg";
-
 const pipeImg = new Image();
 pipeImg.src = "dacchu.png";
 
@@ -55,12 +36,12 @@ const GRAVITY = 0.4, SPEED = 2.2, GAP = 200;
 
 /* ---------- PLAYER ---------- */
 function createPlayer() {
-  return { x: 80, y: 300, vy: 0, size: 50 };
+  return { x: 80, y: canvas.height / 2, vy: 0, size: 50 };
 }
 
 /* ---------- PIPE ---------- */
 function createPipe(x) {
-  const top = Math.random() * 250 + 50;
+  const top = Math.random() * (canvas.height - GAP - 120) + 60;
   return { x, top, passed: false };
 }
 
@@ -96,7 +77,7 @@ function loop() {
 
   ctx.fillStyle = "#000";
   ctx.font = "24px Arial";
-  ctx.fillText(score, canvas.width/2-10, 40);
+  ctx.fillText(score, canvas.width/2 - 10, 40);
 
   if (score >= 100) endGame(true);
   if (player.y < 0 || player.y > canvas.height) endGame(false);
@@ -114,13 +95,12 @@ function startGame() {
 
   startScreen.classList.add("hidden");
   gameOverScreen.classList.add("hidden");
-  leaderboardDiv.classList.add("hidden");
 
   requestAnimationFrame(loop);
 }
 
 /* ---------- END ---------- */
-async function endGame(win) {
+function endGame(win) {
   if (!running) return;
   running = false;
 
@@ -129,31 +109,7 @@ async function endGame(win) {
   finalScore.innerText =
     `Saviour: ${nameInput.value}\nScore: ${score}`;
 
-  await addDoc(collection(db, "leaderboard"), {
-    name: nameInput.value,
-    score,
-    time: Date.now()
-  });
-
-  showLeaderboard();
   gameOverScreen.classList.remove("hidden");
-}
-
-/* ---------- LEADERBOARD ---------- */
-async function showLeaderboard() {
-  leaderboardList.innerHTML = "";
-  leaderboardDiv.classList.remove("hidden");
-
-  const snap = await getDocs(collection(db, "leaderboard"));
-  const data = [];
-  snap.forEach(d => data.push(d.data()));
-
-  data.sort((a,b)=>b.score-a.score);
-  data.slice(0,10).forEach((p,i)=>{
-    const li = document.createElement("li");
-    li.textContent = `${i+1}. ${p.name} — ${p.score}`;
-    leaderboardList.appendChild(li);
-  });
 }
 
 /* ---------- INPUT ---------- */
@@ -164,4 +120,4 @@ document.addEventListener("keydown", e=>{
 
 startBtn.onclick = startGame;
 restartBtn.onclick = () => location.reload();
-closeBoardBtn.onclick = ()=> leaderboardDiv.classList.add("hidden");
+
