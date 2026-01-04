@@ -1,16 +1,13 @@
-// 🔴 TEMPORARILY DISABLE FIREBASE
-// (we will re-enable after confirming game runs)
-
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 
-/* ---------- CANVAS ---------- */
-function resize() {
-  canvas.width = Math.min(window.innerWidth, 400);
-  canvas.height = Math.min(window.innerHeight, 600);
+/* ---------- CANVAS (STABLE SIZE) ---------- */
+function resizeCanvas() {
+  canvas.width = Math.min(window.innerWidth, 420);
+  canvas.height = Math.min(window.innerHeight, 640);
 }
-resize();
-window.addEventListener("resize", resize);
+resizeCanvas();
+window.addEventListener("resize", resizeCanvas);
 
 /* ---------- UI ---------- */
 const startScreen = document.getElementById("startScreen");
@@ -23,75 +20,133 @@ const nameInput = document.getElementById("playerName");
 /* ---------- ASSETS ---------- */
 const playerImg = new Image();
 playerImg.src = "dy.jpg";
+
 const pipeImg = new Image();
 pipeImg.src = "dacchu.png";
 
 /* ---------- AUDIO ---------- */
-const winSound = new Audio("win.mpeg");
+const bgMusic = new Audio("bg1.mpeg");
+bgMusic.loop = true;
+bgMusic.volume = 0.3;
+
 const gameOverSound = new Audio("go.mpeg");
+const winSound = new Audio("win.mpeg");
+
+/* ---------- GAME CONSTANTS ---------- */
+const PIPE_WIDTH = 60;
+const PIPE_GAP = 200;
+const GRAVITY = 0.4;
+const JUMP = -7;
+const SPEED = 2.2;
+const GOLD_SCORE = 100;
 
 /* ---------- GAME STATE ---------- */
 let player, pipes, score, running;
-const GRAVITY = 0.4, SPEED = 2.2, GAP = 200;
 
 /* ---------- PLAYER ---------- */
 function createPlayer() {
-  return { x: 80, y: canvas.height / 2, vy: 0, size: 50 };
+  return {
+    x: 90,
+    y: canvas.height / 2,
+    vy: 0,
+    size: 50
+  };
 }
 
 /* ---------- PIPE ---------- */
-function createPipe(x) {
-  const top = Math.random() * (canvas.height - GAP - 120) + 60;
-  return { x, top, passed: false };
+function createPipe() {
+  const topHeight =
+    Math.random() * (canvas.height - PIPE_GAP - 200) + 80;
+
+  return {
+    x: canvas.width,
+    top: topHeight,
+    passed: false
+  };
 }
 
-/* ---------- LOOP ---------- */
+/* ---------- GAME LOOP ---------- */
 function loop() {
   if (!running) return;
 
-  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+  /* Player */
   player.vy += GRAVITY;
   player.y += player.vy;
   ctx.drawImage(playerImg, player.x, player.y, player.size, player.size);
 
+  /* Pipes */
   pipes.forEach(p => {
     p.x -= SPEED;
-    ctx.drawImage(pipeImg, p.x, 0, 60, p.top);
-    ctx.drawImage(pipeImg, p.x, p.top + GAP, 60, canvas.height);
 
-    if (!p.passed && p.x + 60 < player.x) {
+    // Top pipe
+    ctx.drawImage(pipeImg, p.x, p.top - 50, PIPE_WIDTH, 50);
+    ctx.fillStyle = "#4CAF50";
+    ctx.fillRect(p.x, 0, PIPE_WIDTH, p.top - 50);
+
+    // Bottom pipe
+    ctx.drawImage(
+      pipeImg,
+      p.x,
+      p.top + PIPE_GAP,
+      PIPE_WIDTH,
+      50
+    );
+    ctx.fillRect(
+      p.x,
+      p.top + PIPE_GAP + 50,
+      PIPE_WIDTH,
+      canvas.height
+    );
+
+    // Score
+    if (!p.passed && p.x + PIPE_WIDTH < player.x) {
       score++;
       p.passed = true;
     }
 
+    // Collision
     if (
-      player.x < p.x + 60 &&
+      player.x < p.x + PIPE_WIDTH &&
       player.x + player.size > p.x &&
-      (player.y < p.top || player.y + player.size > p.top + GAP)
-    ) endGame(false);
+      (player.y < p.top ||
+        player.y + player.size >
+          p.top + PIPE_GAP)
+    ) {
+      endGame(false);
+    }
   });
 
-  pipes = pipes.filter(p => p.x > -60);
-  if (Math.random() < 0.02) pipes.push(createPipe(canvas.width));
+  pipes = pipes.filter(p => p.x + PIPE_WIDTH > 0);
 
+  if (Math.random() < 0.02) pipes.push(createPipe());
+
+  /* Score display */
   ctx.fillStyle = "#000";
-  ctx.font = "24px Arial";
-  ctx.fillText(score, canvas.width/2 - 10, 40);
+  ctx.font = "26px Arial Black";
+  ctx.fillText(score, canvas.width / 2 - 10, 40);
 
-  if (score >= 100) endGame(true);
-  if (player.y < 0 || player.y > canvas.height) endGame(false);
+  if (score >= GOLD_SCORE) endGame(true);
+  if (player.y < 0 || player.y + player.size > canvas.height)
+    endGame(false);
   else requestAnimationFrame(loop);
 }
 
 /* ---------- START ---------- */
 function startGame() {
-  if (!nameInput.value.trim()) return alert("Enter saviour name");
+  if (!nameInput.value.trim()) {
+    alert("Enter saviour name");
+    return;
+  }
 
   player = createPlayer();
   pipes = [];
   score = 0;
   running = true;
+
+  bgMusic.currentTime = 0;
+  bgMusic.play();
 
   startScreen.classList.add("hidden");
   gameOverScreen.classList.add("hidden");
@@ -104,7 +159,16 @@ function endGame(win) {
   if (!running) return;
   running = false;
 
-  (win ? winSound : gameOverSound).play();
+  bgMusic.pause();
+  bgMusic.currentTime = 0;
+
+  if (win) {
+    winSound.currentTime = 0;
+    winSound.play();
+  } else {
+    gameOverSound.currentTime = 0;
+    gameOverSound.play();
+  }
 
   finalScore.innerText =
     `Saviour: ${nameInput.value}\nScore: ${score}`;
@@ -113,9 +177,12 @@ function endGame(win) {
 }
 
 /* ---------- INPUT ---------- */
-canvas.addEventListener("pointerdown", ()=> running && (player.vy = -6));
-document.addEventListener("keydown", e=>{
-  if (e.code==="Space" && running) player.vy = -6;
+canvas.addEventListener("pointerdown", () => {
+  if (running) player.vy = JUMP;
+});
+
+document.addEventListener("keydown", e => {
+  if (e.code === "Space" && running) player.vy = JUMP;
 });
 
 startBtn.onclick = startGame;
